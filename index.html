@@ -3,699 +3,556 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>FireGuard Nexus | AI-Driven Fire Monitoring</title>
+    <title>AirGuard | Pemantau Kualitas Udara Real-time</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://unpkg.com/mqtt@5.5.0/dist/mqtt.min.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         :root {
-            --bg-primary: #f0f4fa;
-            --bg-card: rgba(255, 255, 255, 0.85);
-            --glass-border: rgba(255, 255, 255, 0.5);
-            --text-primary: #0a0f2c;
-            --text-secondary: #334155;
-            --border-light: rgba(0, 0, 0, 0.08);
-            --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.08);
-            --gradient-bg: linear-gradient(145deg, #eef2ff 0%, #e0e7ff 100%);
+            --bg-gradient-start: #eef2f9;
+            --bg-gradient-end: #dce3ec;
+            --glass-bg: rgba(255, 255, 255, 0.55);
+            --glass-border: rgba(255, 255, 255, 0.7);
+            --card-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+            --text-primary: #1e293b;
+            --text-secondary: #475569;
+            --border-light: rgba(0, 0, 0, 0.05);
+            --good: #10b981;
+            --moderate: #f59e0b;
+            --unhealthy: #f97316;
+            --very-unhealthy: #ef4444;
+            --hazardous: #7f1d1d;
+            --toxic: #8b5cf6;
         }
 
         body.dark {
-            --bg-primary: #050c1a;
-            --bg-card: rgba(18, 25, 45, 0.85);
+            --bg-gradient-start: #0f172a;
+            --bg-gradient-end: #0a0f1c;
+            --glass-bg: rgba(15, 23, 42, 0.7);
             --glass-border: rgba(255, 255, 255, 0.1);
-            --text-primary: #f1f5ff;
-            --text-secondary: #9aa9c1;
-            --border-light: rgba(255, 255, 255, 0.05);
-            --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.4);
-            --gradient-bg: linear-gradient(145deg, #07112a 0%, #030717 100%);
+            --card-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
         }
 
         body {
-            font-family: 'Inter', sans-serif;
-            background: var(--gradient-bg);
+            font-family: 'Inter', system-ui, sans-serif;
+            background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
             color: var(--text-primary);
             min-height: 100vh;
-            transition: all 0.3s ease;
-            backdrop-filter: blur(2px);
+            transition: all 0.4s ease;
         }
 
-        .glass-card {
-            background: var(--bg-card);
-            backdrop-filter: blur(12px);
-            border: 1px solid var(--glass-border);
-            border-radius: 32px;
-            box-shadow: var(--shadow-glass);
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--border-light); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: var(--moderate); border-radius: 10px; }
 
-        .glass-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12);
-        }
-
-        /* Login Modern */
+        /* Login Modal (sama seperti sebelumnya) */
         .login-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: radial-gradient(circle at 20% 30%, #0f172a, #020617);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 2000;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at 20% 30%, rgba(15,23,42,0.8), rgba(0,0,0,0.9));
             backdrop-filter: blur(12px);
+            display: flex; align-items: center; justify-content: center; z-index: 1000;
         }
         .login-container {
-            background: rgba(15, 25, 45, 0.9);
-            backdrop-filter: blur(20px);
-            border-radius: 48px;
-            padding: 48px;
-            width: 90%;
-            max-width: 480px;
-            border: 1px solid rgba(255,255,255,0.2);
-            box-shadow: 0 25px 45px rgba(0,0,0,0.4);
+            background: var(--glass-bg); backdrop-filter: blur(16px);
+            border-radius: 2rem; padding: 2.5rem; width: 90%; max-width: 440px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2); border: 1px solid var(--glass-border);
             animation: floatIn 0.6s ease;
         }
-        @keyframes floatIn {
-            0% { opacity: 0; transform: translateY(40px) scale(0.96); }
-            100% { opacity: 1; transform: translateY(0) scale(1); }
-        }
-        .login-brand {
-            text-align: center;
-        }
+        @keyframes floatIn { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }
         .login-icon {
-            width: 80px;
-            height: 80px;
-            background: linear-gradient(135deg, #ff4d4d, #b91c1c);
-            border-radius: 28px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 20px;
-            box-shadow: 0 8px 24px rgba(185, 28, 28, 0.4);
+            width: 80px; height: 80px; background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            border-radius: 28px; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem;
         }
-        .login-icon i {
-            font-size: 38px;
-            color: white;
-        }
+        .login-icon i { font-size: 2.5rem; color: white; }
+        .login-brand h2 { font-size: 2rem; font-weight: 800; background: linear-gradient(135deg, #3b82f6, #06b6d4); -webkit-background-clip: text; background-clip: text; color: transparent; }
         .input-group {
-            background: rgba(255,255,255,0.08);
-            border-radius: 60px;
-            padding: 4px 20px;
-            border: 1px solid rgba(255,255,255,0.2);
-            transition: all 0.3s;
+            display: flex; align-items: center; background: rgba(255,255,255,0.2); backdrop-filter: blur(4px);
+            border-radius: 1.5rem; padding: 0.25rem 1.2rem; border: 1px solid rgba(255,255,255,0.3);
         }
-        .input-group:focus-within {
-            border-color: #ef4444;
-            background: rgba(255,255,255,0.15);
-        }
-        .input-group input {
-            background: transparent;
-            border: none;
-            padding: 16px 0;
-            color: white;
-            font-weight: 500;
-            width: 100%;
-            outline: none;
-        }
+        .input-group input { flex: 1; padding: 0.9rem 0; background: none; border: none; outline: none; color: var(--text-primary); }
         .login-btn {
-            background: linear-gradient(95deg, #ef4444, #b91c1c);
-            border-radius: 60px;
-            padding: 14px;
-            font-weight: bold;
-            font-size: 1rem;
-            transition: 0.2s;
-            cursor: pointer;
-            border: none;
-            color: white;
-            width: 100%;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; border: none; padding: 0.9rem;
+            border-radius: 2rem; font-weight: 700; cursor: pointer; transition: all 0.3s;
         }
-        .login-btn:hover {
-            transform: scale(1.02);
-            box-shadow: 0 8px 28px #ef4444aa;
+        .login-btn:hover { transform: translateY(-3px); box-shadow: 0 10px 25px rgba(59,130,246,0.5); }
+
+        /* Dashboard */
+        .dashboard-wrapper { min-height: 100vh; padding: 1.5rem; display: none; }
+        .main-container { max-width: 1400px; margin: 0 auto; display: flex; flex-direction: column; gap: 1.5rem; }
+
+        /* Top Bar Glass */
+        .top-bar {
+            background: var(--glass-bg); backdrop-filter: blur(12px); border-radius: 2rem;
+            padding: 1.2rem 2rem; display: flex; justify-content: space-between; align-items: center;
+            flex-wrap: wrap; gap: 1rem; border: 1px solid var(--glass-border);
         }
-        .dashboard-wrapper {
-            padding: 24px;
-            display: none;
+        .app-icon {
+            width: 56px; height: 56px; border-radius: 1.2rem; display: flex; align-items: center; justify-content: center;
+            font-size: 1.8rem; background: linear-gradient(135deg, #3b82f6, #06b6d4);
         }
-        .main-container {
-            max-width: 1600px;
-            margin: 0 auto;
+        .dashboard-title { font-size: 1.7rem; font-weight: 800; background: linear-gradient(135deg, var(--text-primary), #3b82f6); -webkit-background-clip: text; background-clip: text; color: transparent; }
+        .status-badge { padding: 0.5rem 1.5rem; border-radius: 2rem; font-weight: 700; backdrop-filter: blur(4px); }
+        .badge-good { background: rgba(16,185,129,0.15); color: #10b981; border: 1px solid rgba(16,185,129,0.4); }
+        .badge-moderate { background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.4); }
+        .badge-unhealthy { background: rgba(249,115,22,0.15); color: #f97316; border: 1px solid rgba(249,115,22,0.4); }
+        .badge-very-unhealthy { background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.5); }
+        .badge-hazardous { background: rgba(127,29,29,0.2); color: #b91c1c; border: 1px solid #b91c1c; animation: pulseBadge 1s infinite; }
+        @keyframes pulseBadge { 0% { box-shadow: 0 0 0 0 rgba(185,28,28,0.4); } 50% { box-shadow: 0 0 0 8px rgba(185,28,28,0); } }
+        .icon-btn {
+            background: var(--glass-bg); border: 1px solid var(--glass-border); width: 42px; height: 42px;
+            border-radius: 2rem; cursor: pointer; transition: 0.2s;
         }
-        .stat-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 28px;
+        .icon-btn:hover { background: #3b82f6; color: white; transform: scale(1.05); }
+
+        /* Risk Card -> Air Quality Card */
+        .aqi-card {
+            background: var(--glass-bg); backdrop-filter: blur(12px); border-radius: 2rem;
+            padding: 1.5rem 2rem; display: flex; justify-content: space-between; align-items: center;
+            flex-wrap: wrap; gap: 1rem; border: 1px solid var(--glass-border);
         }
-        .stat-card {
-            padding: 20px;
-            border-radius: 28px;
-            background: var(--bg-card);
-            backdrop-filter: blur(8px);
-            border: 1px solid var(--glass-border);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+        .aqi-score {
+            display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;
         }
-        .stat-value {
-            font-size: 2rem;
-            font-weight: 800;
-            font-family: 'JetBrains Mono', monospace;
+        .score-circle {
+            width: 100px; height: 100px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-family: 'JetBrains Mono', monospace; font-size: 2rem; font-weight: 800;
+            background: rgba(0,0,0,0.1); backdrop-filter: blur(4px);
         }
-        .sensor-modern-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 24px;
-            margin-bottom: 32px;
+        .aqi-good { border: 6px solid #10b981; color: #10b981; box-shadow: 0 0 15px rgba(16,185,129,0.3); }
+        .aqi-moderate { border: 6px solid #f59e0b; color: #f59e0b; }
+        .aqi-unhealthy { border: 6px solid #f97316; color: #f97316; }
+        .aqi-very-unhealthy { border: 6px solid #ef4444; color: #ef4444; animation: pulseAQI 1s infinite alternate; }
+        .aqi-hazardous { border: 6px solid #7f1d1d; color: #b91c1c; animation: pulseAQI 0.5s infinite alternate; }
+        @keyframes pulseAQI { from { box-shadow: 0 0 5px; } to { box-shadow: 0 0 25px; } }
+
+        /* Sensor & Output Grids */
+        .sensor-grid, .output-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; }
+        .sensor-card, .output-card {
+            background: var(--glass-bg); backdrop-filter: blur(12px); border-radius: 1.5rem;
+            padding: 1.5rem; border: 1px solid var(--glass-border); transition: transform 0.3s;
         }
-        .sensor-card-modern {
-            background: var(--bg-card);
-            backdrop-filter: blur(8px);
-            border-radius: 32px;
-            padding: 24px;
-            border: 1px solid var(--glass-border);
-            transition: all 0.2s;
+        .sensor-card:hover { transform: translateY(-5px); }
+        .sensor-value { font-family: 'JetBrains Mono', monospace; font-size: 2.2rem; font-weight: 700; margin: 0.5rem 0; }
+        .sensor-value.crit { color: #ef4444; text-shadow: 0 0 8px rgba(239,68,68,0.6); }
+        .threshold-bar { height: 5px; background: rgba(0,0,0,0.1); border-radius: 10px; overflow: hidden; margin-top: 8px; }
+        .threshold-fill { height: 100%; border-radius: 10px; transition: width 0.3s; }
+        .led-triple { display: flex; justify-content: center; gap: 1rem; margin: 1rem 0; }
+        .led-dot { width: 28px; height: 28px; border-radius: 50%; background: #64748b; transition: 0.2s; }
+        .led-dot.on-green { background: #10b981; box-shadow: 0 0 15px #10b981; }
+        .led-dot.on-yellow { background: #f59e0b; box-shadow: 0 0 15px #f59e0b; }
+        .led-dot.on-red { background: #ef4444; box-shadow: 0 0 20px #ef4444; animation: blinkRed 0.4s infinite; }
+        @keyframes blinkRed { 50% { opacity: 0.5; } }
+
+        .btn-outline {
+            background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 2rem;
+            padding: 0.7rem 1.5rem; font-weight: 600; transition: 0.2s;
         }
-        .sensor-digit {
-            font-size: 2.8rem;
-            font-weight: 800;
-            font-family: 'JetBrains Mono', monospace;
-            margin: 12px 0;
+        .btn-outline:hover { background: #3b82f6; color: white; transform: translateY(-3px); }
+
+        .log-section {
+            background: var(--glass-bg); backdrop-filter: blur(12px); border-radius: 1.5rem;
+            padding: 1.5rem; border: 1px solid var(--glass-border);
         }
-        .threshold-progress {
-            height: 8px;
-            background: rgba(0,0,0,0.1);
-            border-radius: 12px;
-            overflow: hidden;
-            margin: 12px 0;
+        .log-filter-btn {
+            padding: 0.4rem 1rem; border-radius: 2rem; background: rgba(0,0,0,0.05);
+            border: 1px solid var(--glass-border); cursor: pointer;
         }
-        .progress-fill {
-            height: 100%;
-            border-radius: 12px;
-            transition: width 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
-        }
-        .risk-radial {
-            background: var(--bg-card);
-            border-radius: 36px;
-            padding: 24px;
-            display: flex;
-            align-items: center;
-            gap: 32px;
-            flex-wrap: wrap;
-            margin-bottom: 32px;
-        }
-        .risk-ring {
-            width: 130px;
-            height: 130px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2.6rem;
-            font-weight: 800;
-            background: #0f172a30;
-            backdrop-filter: blur(4px);
-            border: 6px solid;
-            transition: all 0.2s;
-        }
-        .charts-duo {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-            gap: 28px;
-            margin-bottom: 32px;
-        }
-        .chart-card {
-            background: var(--bg-card);
-            backdrop-filter: blur(8px);
-            border-radius: 32px;
-            padding: 20px;
-        }
-        .btn-modern {
-            background: rgba(255,255,255,0.1);
-            border: 1px solid var(--glass-border);
-            border-radius: 60px;
-            padding: 10px 24px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: 0.2s;
-        }
-        .btn-modern:hover {
-            background: #ef4444;
-            color: white;
-            border-color: #ef4444;
-        }
-        .toast {
-            position: fixed;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%) translateY(100px);
-            background: #1e293b;
-            color: white;
-            padding: 14px 28px;
-            border-radius: 60px;
-            font-weight: 600;
-            z-index: 1200;
-            transition: 0.25s cubic-bezier(0.2, 1.3, 0.4, 1);
-            pointer-events: none;
-        }
-        .toast.show { transform: translateX(-50%) translateY(0); }
-        .fire-glow {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 200px;
-            background: radial-gradient(ellipse at center, rgba(255, 80, 40, 0.3), transparent);
-            pointer-events: none;
-            opacity: 0;
-            transition: 0.4s;
-            z-index: 10;
-        }
-        .fire-glow.active { opacity: 1; animation: flicker 0.2s infinite alternate; }
-        @keyframes flicker { 0% { opacity: 0.5; } 100% { opacity: 0.9; } }
-        @media (max-width: 780px) {
-            .dashboard-wrapper { padding: 12px; }
-            .charts-duo { grid-template-columns: 1fr; }
-        }
-        .log-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.75rem;
-        }
-        .log-table th {
-            text-align: left;
-            padding: 12px 8px;
-            background: var(--bg-primary);
-            color: var(--text-secondary);
-            font-weight: 600;
-            position: sticky;
-            top: 0;
-        }
-        .log-table td {
-            padding: 10px 8px;
-            border-bottom: 1px solid var(--border-light);
-        }
-        .status-badge {
-            padding: 4px 12px;
-            border-radius: 40px;
-            font-size: 0.7rem;
-            font-weight: 700;
-        }
-        .badge-danger { background: #ef4444; color: white; }
-        .badge-warning { background: #f59e0b; color: black; }
-        .badge-aman { background: #10b981; color: white; }
+        .log-filter-btn.active { background: #3b82f6; color: white; }
+        .log-container { max-height: 320px; overflow-y: auto; }
+        .log-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+        .log-table th, .log-table td { padding: 0.6rem 0.5rem; border-bottom: 1px solid var(--border-light); }
         .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.6);
-            backdrop-filter: blur(8px);
-            z-index: 1500;
-            align-items: center;
-            justify-content: center;
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); z-index: 1000;
+            align-items: center; justify-content: center;
         }
         .modal.active { display: flex; }
         .modal-content {
-            background: var(--bg-card);
-            border-radius: 32px;
-            width: 90%;
-            max-width: 500px;
+            background: var(--glass-bg); backdrop-filter: blur(20px); border-radius: 2rem;
+            width: 90%; max-width: 500px; border: 1px solid var(--glass-border);
         }
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            padding: 20px 24px;
-            border-bottom: 1px solid var(--glass-border);
+        .threshold-item { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+        .threshold-item input { width: 120px; padding: 0.5rem; border-radius: 1rem; background: rgba(0,0,0,0.05); color: var(--text-primary); }
+        .toast {
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100px);
+            background: rgba(0,0,0,0.8); backdrop-filter: blur(12px); color: white; padding: 0.8rem 1.8rem;
+            border-radius: 3rem; transition: transform 0.3s; pointer-events: none; z-index: 1000;
         }
-        .modal-close {
-            background: none;
-            border: none;
-            font-size: 28px;
-            cursor: pointer;
-        }
-        .modal-body {
-            padding: 24px;
-            display: flex;
-            flex-direction: column;
-            gap: 18px;
-        }
-        .threshold-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .threshold-item input {
-            width: 130px;
-            padding: 8px 12px;
-            border-radius: 40px;
-            border: 1px solid var(--glass-border);
-            background: var(--bg-primary);
-        }
-        .modal-footer {
-            padding: 16px 24px;
-            display: flex;
-            justify-content: flex-end;
-            gap: 12px;
-            border-top: 1px solid var(--glass-border);
-        }
-        .btn-primary {
-            background: #ef4444;
-            color: white;
-            border: none;
-            padding: 8px 20px;
-            border-radius: 40px;
-            cursor: pointer;
-        }
-        .btn-secondary {
-            background: transparent;
-            border: 1px solid var(--glass-border);
-            padding: 8px 20px;
-            border-radius: 40px;
-            cursor: pointer;
-        }
-        .conn-dot {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            background: #94a3b8;
-            transition: all 0.3s;
-        }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        .fire-overlay { display: none; } /* tidak dipakai untuk kualitas udara */
+        @media (max-width: 768px) { .dashboard-wrapper { padding: 1rem; } .score-circle { width: 70px; height: 70px; font-size: 1.4rem; } }
     </style>
 </head>
 <body>
 <div class="login-overlay" id="loginOverlay">
     <div class="login-container">
         <div class="login-brand">
-            <div class="login-icon"><i class="fas fa-fire-extinguisher"></i></div>
-            <h2 style="font-size: 32px; font-weight: 800; background: linear-gradient(135deg, #ff8a5c, #ff3a2f); -webkit-background-clip: text; background-clip: text; color: transparent;">FireGuard Nexus</h2>
-            <p style="color: #b9c7dd; margin-top: 12px;">AI-Powered Wildfire & Industrial IoT</p>
+            <div class="login-icon"><i class="fas fa-wind"></i></div>
+            <h2>AirGuard</h2>
+            <p>Pemantau Kualitas Udara Cerdas</p>
         </div>
-        <div class="login-form" style="margin-top: 32px;">
-            <div class="input-group"><i class="fas fa-user" style="color:#ef4444;"></i><input type="text" id="loginUsername" placeholder="Username" autocomplete="off"></div>
-            <div class="input-group"><i class="fas fa-lock" style="color:#ef4444;"></i><input type="password" id="loginPassword" placeholder="Password"></div>
-            <button id="loginBtn" class="login-btn"><span>ACCESS DASHBOARD</span> <i class="fas fa-arrow-right"></i></button>
-            <div class="login-hint" style="color:#a0afc7;"><small>demo: admin / admin123</small></div>
+        <div class="login-form">
+            <div class="input-group"><i class="fas fa-user"></i><input type="text" id="loginUsername" placeholder="Username"></div>
+            <div class="input-group"><i class="fas fa-lock"></i><input type="password" id="loginPassword" placeholder="Password"></div>
+            <button id="loginBtn" class="login-btn">MASUK DASHBOARD <i class="fas fa-arrow-right"></i></button>
+            <div class="login-hint"><small>Demo: admin / admin123</small></div>
         </div>
     </div>
 </div>
+
 <div class="dashboard-wrapper" id="dashboardWrapper">
-    <div class="fire-glow" id="fireGlow"></div>
-    <div class="toast" id="toastMsg"></div>
+    <div class="toast" id="toast"></div>
     <div class="main-container">
-        <div class="glass-card" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; padding: 20px 28px; margin-bottom: 28px;">
-            <div style="display: flex; align-items: center; gap: 20px;">
-                <div style="background: linear-gradient(145deg, #ef4444, #991b1b); width: 56px; height: 56px; border-radius: 22px; display: flex; align-items: center; justify-content: center;"><i class="fas fa-microchip" style="font-size: 28px; color: white;"></i></div>
-                <div><h1 style="font-size: 1.8rem; font-weight: 800;">FireGuard Nexus</h1><span style="color: var(--text-secondary);">MQTT Real-time · 7-Zone Priority</span></div>
+        <div class="top-bar">
+            <div class="top-left">
+                <div class="app-icon"><i class="fas fa-leaf"></i></div>
+                <div><h1 class="dashboard-title">🌬️ AirGuard</h1><span class="dashboard-subtitle">Monitor Kualitas Udara · Real-time AQI</span></div>
             </div>
-            <div style="display: flex; gap: 15px;">
-                <div id="mqttStatusChip" class="output-badge" style="gap: 8px; padding: 8px 20px;"><span class="conn-dot" id="connDot" style="width: 12px; height: 12px;"></span><span id="connLabel">Connecting</span></div>
-                <button id="darkToggle" class="btn-modern"><i class="fas fa-moon"></i></button>
-                <button id="logoutBtn" class="btn-modern"><i class="fas fa-sign-out-alt"></i></button>
-            </div>
-        </div>
-
-        <div class="stat-grid">
-            <div class="stat-card"><div><i class="fas fa-chart-line fa-2x" style="color: #3b82f6;"></i><p style="font-size: 0.8rem;">Peak Risk</p></div><div class="stat-value" id="peakRiskLabel">0%</div></div>
-            <div class="stat-card"><div><i class="fas fa-fire fa-2x" style="color: #f97316;"></i><p style="font-size: 0.8rem;">Critical Triggers</p></div><div class="stat-value" id="totalTriggers">0</div></div>
-            <div class="stat-card"><div><i class="fas fa-clock fa-2x" style="color: #10b981;"></i><p style="font-size: 0.8rem;">Last MQTT</p></div><div class="stat-value" id="lastUpdate">--:--</div></div>
-            <div class="stat-card"><div><i class="fas fa-database fa-2x" style="color: #a855f7;"></i><p style="font-size: 0.8rem;">Logs Today</p></div><div class="stat-value" id="logCountToday">0</div></div>
-        </div>
-
-        <div class="sensor-modern-grid" id="sensorGrid"></div>
-
-        <div class="risk-radial">
-            <div class="risk-ring" id="riskRing">0%</div>
-            <div><h3>🔥 Real-time Risk Score</h3><p id="riskAdvice" style="color:var(--text-secondary)">Evaluating sensor fusion...</p><div id="triggerSummary" style="margin-top: 8px;"><i class="fas fa-exclamation-triangle"></i> <span id="triggerText">0/4 sensors triggered</span></div></div>
-            <div style="margin-left: auto; display: flex; gap: 24px;">
-                <div><i class="fas fa-lightbulb"></i> LED <span id="ledSummary">🟢 Aman</span></div>
-                <div><i class="fas fa-bell"></i> Buzzer <span id="buzzerSummary">🔇</span></div>
-                <div><i class="fas fa-water"></i> Relay <span id="relaySummary">⭕</span></div>
+            <div class="top-right">
+                <div class="conn-status"><div class="conn-dot" id="connDot"></div><span id="connLabel">MQTT: Menghubung...</span></div>
+                <div class="status-badge" id="statusBadge"><span>🟢 KUALITAS BAIK</span></div>
+                <button class="icon-btn" id="darkToggle"><i class="fas fa-moon"></i></button>
+                <button class="icon-btn" id="logoutBtn"><i class="fas fa-sign-out-alt"></i></button>
             </div>
         </div>
 
-        <div class="charts-duo">
-            <div class="chart-card"><h3><i class="fas fa-temperature-high"></i> Thermal Trend (Api & Ruangan)</h3><canvas id="tempChart" height="180"></canvas></div>
-            <div class="chart-card"><h3><i class="fas fa-smog"></i> Gas & Kelembaban</h3><canvas id="gasHumChart" height="180"></canvas></div>
+        <div class="aqi-card">
+            <div class="aqi-score">
+                <div class="score-circle" id="scoreCircle">0</div>
+                <div class="risk-info"><h3>Indeks Kualitas Udara (AQI)</h3><p id="scoreDesc">Menunggu data...</p></div>
+            </div>
+            <div class="risk-trigger"><i class="fas fa-smog"></i><span id="triggerText">0 parameter tidak normal</span></div>
         </div>
 
-        <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 20px;">
-            <button id="btnThreshold" class="btn-modern"><i class="fas fa-sliders-h"></i> Advanced Thresholds</button>
-            <button id="btnClearLog" class="btn-modern"><i class="fas fa-trash-alt"></i> Clear History</button>
-            <button id="btnExportLog" class="btn-modern"><i class="fas fa-download"></i> Export CSV</button>
+        <div class="sensor-grid" id="sensorGrid"></div>
+        <div class="output-grid" id="outputGrid"></div>
+
+        <div class="control-bar">
+            <button class="btn btn-outline" id="btnThreshold"><i class="fas fa-sliders-h"></i> Atur Threshold</button>
+            <button class="btn btn-outline" id="btnClearLog"><i class="fas fa-trash-alt"></i> Hapus Log</button>
         </div>
-        <div class="glass-card" style="padding: 20px;">
-            <div style="display: flex; justify-content: space-between;"><h3><i class="fas fa-history"></i> Forensic Logs & Events</h3><div class="log-filters" style="display: flex; gap: 8px;"><button data-filter="all" class="log-filter-btn active">All</button><button data-filter="status" class="log-filter-btn">Status</button><button data-filter="sensor" class="log-filter-btn">Sensor</button></div></div>
-            <div class="log-container" style="max-height: 280px; overflow-y: auto; margin-top: 16px;"><table class="log-table" style="width:100%;"><thead><tr><th>Time</th><th>Event</th><th>Status</th><th>Gas</th><th>Api°C</th><th>Room°C</th><th>Hum%</th></tr></thead><tbody id="logBody"><tr><td colspan="7" style="text-align:center;">⏳ Waiting for MQTT stream......</td></tr></tbody></table></div>
+
+        <div class="log-section">
+            <div class="log-header"><h3><i class="fas fa-history"></i> Riwayat Kualitas Udara</h3><div class="log-filters"><button class="log-filter-btn active" data-filter="all">Semua</button><button class="log-filter-btn" data-filter="status">Perubahan Status</button><button class="log-filter-btn" data-filter="sensor">Data Sensor</button></div></div>
+            <div class="log-container"><table class="log-table"><thead><tr><th>Waktu</th><th>Event</th><th>Status AQI</th><th>PM2.5</th><th>Gas</th><th>Suhu</th><th>Hum</th></tr></thead><tbody id="logBody"><tr><td colspan="7" class="log-empty">🔍 Menunggu data MQTT...</td></tr></tbody></table></div>
         </div>
     </div>
-    <div class="modal" id="thresholdModal"><div class="modal-content glass-card" style="max-width: 500px;"><div class="modal-header"><h3>Threshold Calibration</h3><button class="modal-close" id="closeModalBtn">&times;</button></div><div class="modal-body"><div class="threshold-item"><label>MQ2 Gas (max analog)</label><input type="number" id="thGas" step="100"></div><div class="threshold-item"><label>Fire Danger (Temp °C)</label><input type="number" id="thFireDanger" step="1"></div><div class="threshold-item"><label>Fire Warning (°C)</label><input type="number" id="thFireWarn" step="1"></div><div class="threshold-item"><label>Room Hot (°C)</label><input type="number" id="thRoomHot" step="1"></div><div class="threshold-item"><label>Dry Humidity (%)</label><input type="number" id="thHumDry" step="5"></div></div><div class="modal-footer"><button class="btn-secondary" id="cancelModalBtn">Cancel</button><button class="btn-primary" id="saveThresholdBtn">Save & Apply</button></div></div></div>
+</div>
+
+<div class="modal" id="thresholdModal">
+    <div class="modal-content">
+        <div class="modal-header"><h3><i class="fas fa-sliders-h"></i> Atur Threshold Kualitas Udara</h3><button class="modal-close" id="closeModalBtn">&times;</button></div>
+        <div class="modal-body">
+            <div class="threshold-item"><label>PM2.5 (µg/m³) - Baik maks</label><input type="number" id="thPm25Good" value="50" step="5"></div>
+            <div class="threshold-item"><label>PM2.5 - Sedang maks</label><input type="number" id="thPm25Moderate" value="100" step="5"></div>
+            <div class="threshold-item"><label>PM2.5 - Tidak Sehat maks</label><input type="number" id="thPm25Unhealthy" value="150" step="5"></div>
+            <div class="threshold-item"><label>PM2.5 - Sangat Tidak Sehat</label><input type="number" id="thPm25VeryUnhealthy" value="200" step="5"></div>
+            <div class="threshold-item"><label>Gas Polutan (ppm) - Beracun ></label><input type="number" id="thGasToxic" value="200" step="10"></div>
+            <div class="threshold-item"><label>Suhu Ruangan Panas (°C)</label><input type="number" id="thRoomHot" value="40" step="1"></div>
+            <div class="threshold-item"><label>Kelembaban Kering (%)</label><input type="number" id="thHumDry" value="30" step="5"></div>
+        </div>
+        <div class="modal-footer"><button class="btn btn-secondary" id="cancelModalBtn">Batal</button><button class="btn btn-primary" id="saveThresholdBtn">Simpan</button></div>
+    </div>
 </div>
 
 <script>
 (function(){
-    // ========== AUTH ==========
+    // Auth
     const loginOverlay = document.getElementById('loginOverlay');
     const dashboardWrapper = document.getElementById('dashboardWrapper');
     const loginBtn = document.getElementById('loginBtn');
     const loginUsername = document.getElementById('loginUsername');
     const loginPassword = document.getElementById('loginPassword');
     const logoutBtn = document.getElementById('logoutBtn');
-    const darkToggle = document.getElementById('darkToggle');
-
-    function showToast(msg) {
-        const toast = document.getElementById('toastMsg');
-        if(toast) { toast.textContent = msg; toast.classList.add('show'); setTimeout(()=>toast.classList.remove('show'),2500); }
+    const VALID_USER = 'admin'; const VALID_PASS = 'admin123';
+    function showToast(msg, dur=2500){ const t=document.getElementById('toast'); if(t){ t.textContent=msg; t.classList.add('show'); clearTimeout(t._timer); t._timer=setTimeout(()=>t.classList.remove('show'),dur); } }
+    function checkAuth(){
+        if(sessionStorage.getItem('airguard_logged_in')==='true'){
+            loginOverlay.style.display='none';
+            dashboardWrapper.style.display='block';
+            if(typeof initDashboard === 'function') initDashboard();
+        } else { loginOverlay.style.display='flex'; dashboardWrapper.style.display='none'; }
     }
-
-    function checkAuth() {
-        if(sessionStorage.getItem('fireguard_auth') === 'true') {
-            loginOverlay.style.display = 'none';
-            dashboardWrapper.style.display = 'block';
-            if(typeof window.initDashboard === 'function') window.initDashboard();
-        } else {
-            loginOverlay.style.display = 'flex';
-            dashboardWrapper.style.display = 'none';
-        }
-    }
-
-    if(loginBtn) {
-        loginBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            if(loginUsername.value.trim() === 'admin' && loginPassword.value === 'admin123') {
-                sessionStorage.setItem('fireguard_auth', 'true');
-                checkAuth();
-                showToast('✅ Welcome, Admin!');
-            } else {
-                showToast('❌ Invalid credentials');
-                loginPassword.value = '';
-            }
-        });
-    }
-    if(loginPassword) loginPassword.addEventListener('keypress', e => { if(e.key === 'Enter') loginBtn.click(); });
-    if(logoutBtn) {
-        logoutBtn.addEventListener('click', () => {
-            sessionStorage.removeItem('fireguard_auth');
-            if(window.mqttClient) { try { window.mqttClient.end(true); } catch(e) {} window.mqttClient = null; }
+    loginBtn?.addEventListener('click',()=>{
+        if(loginUsername.value.trim()===VALID_USER && loginPassword.value===VALID_PASS){
+            sessionStorage.setItem('airguard_logged_in','true');
             checkAuth();
-            showToast('🔓 Logged out');
-        });
-    }
-    if(darkToggle) {
-        darkToggle.addEventListener('click', () => { document.body.classList.toggle('dark'); localStorage.setItem('darkMode', document.body.classList.contains('dark')); });
-    }
-    if(localStorage.getItem('darkMode') === 'true') document.body.classList.add('dark');
+            showToast('✅ Selamat datang, Admin!');
+        } else { showToast('❌ Username atau password salah!'); loginPassword.value=''; }
+    });
+    loginPassword?.addEventListener('keypress',e=>{ if(e.key==='Enter') loginBtn.click(); });
+    logoutBtn?.addEventListener('click',()=>{ sessionStorage.removeItem('airguard_logged_in'); if(window.mqttClient) window.mqttClient.end(); checkAuth(); showToast('🔓 Anda telah keluar'); });
+    if(localStorage.getItem('airguard_dark')==='true') document.body.classList.add('dark');
+    const darkToggle=document.getElementById('darkToggle');
+    darkToggle?.addEventListener('click',()=>{ document.body.classList.toggle('dark'); localStorage.setItem('airguard_dark',document.body.classList.contains('dark')); });
 
-    // ========== DASHBOARD CORE ==========
+    // State untuk Air Quality
     let state = {
-        gasValue: 0, objectTemp: 0, roomTemp: 0, humidity: 0,
-        status: 'AMAN', ledGreen: true, ledYellow: false, ledRed: false, relay: false, buzzer: false,
-        thresholds: { gas: 2000, fireDanger: 70, fireWarn: 50, roomHot: 40, humDry: 50 },
-        logs: [], historyArrays: { gas: [], objTemp: [], roomTemp: [], hum: [] }, maxRisk: 0
+        pm25: 0,        // partikulat halus
+        gas: 0,         // gas polutan (MQ2) dalam ppm
+        roomTemp: 0,
+        humidity: 0,
+        status: 'BAIK',
+        ledGreen: false, ledYellow: false, ledRed: false, relay: false, buzzer: false,
+        thresholds: {
+            pm25Good: 50, pm25Moderate: 100, pm25Unhealthy: 150, pm25VeryUnhealthy: 200,
+            gasToxic: 200, roomHot: 40, humDry: 30
+        },
+        logs: [],
+        history: { pm25: Array(20).fill(0), gas: Array(20).fill(0), roomTemp: Array(20).fill(0), hum: Array(20).fill(0) },
+        mqttConnected: false
     };
+    let charts = {};
+    let currentLogFilter = 'all';
     let mqttClient = null;
-    let tempChart = null, gasHumChart = null;
-    let currentFilter = 'all';
-    let timeLabels = [];
-    for(let i=1;i<=30;i++) timeLabels.push(`-${i}s`);
+    const BROKER = 'wss://broker.emqx.io:8084/mqtt';
+    const TOPIC = 'air_quality/data';  // kita tetap gunakan topik yang sama, atau bisa diubah
 
-    function initHistoryArrays() {
-        for(let i=0;i<30;i++) { state.historyArrays.gas.push(0); state.historyArrays.objTemp.push(0); state.historyArrays.roomTemp.push(0); state.historyArrays.hum.push(0); }
-    }
-    initHistoryArrays();
-
-    function updateCharts() {
-        if(tempChart) { tempChart.data.datasets[0].data = [...state.historyArrays.roomTemp]; tempChart.data.datasets[1].data = [...state.historyArrays.objTemp]; tempChart.update(); }
-        if(gasHumChart) { gasHumChart.data.datasets[0].data = [...state.historyArrays.gas]; gasHumChart.data.datasets[1].data = [...state.historyArrays.hum]; gasHumChart.update(); }
-    }
-
-    function pushToHistory() {
-        state.historyArrays.gas.push(state.gasValue); if(state.historyArrays.gas.length>30) state.historyArrays.gas.shift();
-        state.historyArrays.objTemp.push(state.objectTemp); if(state.historyArrays.objTemp.length>30) state.historyArrays.objTemp.shift();
-        state.historyArrays.roomTemp.push(state.roomTemp); if(state.historyArrays.roomTemp.length>30) state.historyArrays.roomTemp.shift();
-        state.historyArrays.hum.push(state.humidity); if(state.historyArrays.hum.length>30) state.historyArrays.hum.shift();
-        updateCharts();
-    }
-
-    function applyOutputsByStatus(status) {
-        state.ledGreen = state.ledYellow = state.ledRed = state.relay = state.buzzer = false;
-        if(status === 'BAHAYA') { state.ledRed = true; state.relay = true; state.buzzer = true; }
-        else if(['WASPADA','GAS_TERDETEKSI','API_TERDETEKSI','RUANGAN_PANAS'].includes(status)) { state.ledYellow = true; state.buzzer = true; }
-        else if(status === 'RUANGAN_KERING') {}
-        else { state.ledGreen = true; }
-        const ledSpan = document.getElementById('ledSummary'); if(ledSpan) ledSpan.innerHTML = state.ledRed ? '🔴 MERAH' : (state.ledYellow ? '🟡 KUNING' : '🟢 HIJAU');
-        const buzzerSpan = document.getElementById('buzzerSummary'); if(buzzerSpan) buzzerSpan.innerHTML = state.buzzer ? '🔊 AKTIF' : '🔇 OFF';
-        const relaySpan = document.getElementById('relaySummary'); if(relaySpan) relaySpan.innerHTML = state.relay ? '⚡ ON' : '⭕ OFF';
-    }
-
-    function determineStatus() {
+    // Fungsi menentukan status AQI berdasarkan PM2.5, gas, suhu, kelembaban
+    function determineAirQualityStatus(){
         const th = state.thresholds;
-        if(state.objectTemp >= th.fireDanger && state.gasValue >= th.gas) return 'BAHAYA';
-        if(state.gasValue >= th.gas && state.objectTemp >= th.fireWarn) return 'WASPADA';
-        if(state.gasValue >= th.gas) return 'GAS_TERDETEKSI';
-        if(state.objectTemp >= th.fireWarn) return 'API_TERDETEKSI';
+        // Prioritas: gas beracun > PM2.5 sangat berbahaya > PM2.5 tidak sehat > suhu panas > kelembaban kering
+        if(state.gas >= th.gasToxic) return 'GAS_BERACUN';
+        if(state.pm25 > th.pm25VeryUnhealthy) return 'BERBAHAYA';
+        if(state.pm25 > th.pm25Unhealthy) return 'SANGAT_TIDAK_SEHAT';
+        if(state.pm25 > th.pm25Moderate) return 'TIDAK_SEHAT';
+        if(state.pm25 > th.pm25Good) return 'SEDANG';
         if(state.roomTemp > th.roomHot) return 'RUANGAN_PANAS';
         if(state.humidity < th.humDry) return 'RUANGAN_KERING';
-        return 'AMAN';
+        return 'BAIK';
     }
 
-    function updateRiskUI() {
-        let score = state.status === 'BAHAYA' ? 100 : (['WASPADA','GAS_TERDETEKSI','API_TERDETEKSI'].includes(state.status) ? 72 : (state.status === 'RUANGAN_PANAS' ? 45 : (state.status === 'RUANGAN_KERING' ? 20 : 8)));
-        if(score > state.maxRisk) state.maxRisk = score;
-        const riskRing = document.getElementById('riskRing'); if(riskRing) { riskRing.innerHTML = score + '%'; riskRing.style.borderColor = score > 70 ? '#ef4444' : (score > 30 ? '#f59e0b' : '#10b981'); }
-        const peakLabel = document.getElementById('peakRiskLabel'); if(peakLabel) peakLabel.innerHTML = state.maxRisk + '%';
-        let trig = (state.gasValue >= state.thresholds.gas ? 1 : 0) + (state.objectTemp >= state.thresholds.fireWarn ? 1 : 0) + (state.roomTemp > state.thresholds.roomHot ? 1 : 0) + (state.humidity < state.thresholds.humDry ? 1 : 0);
-        const triggerText = document.getElementById('triggerText'); if(triggerText) triggerText.innerHTML = `${trig}/4 triggers active`;
-        const totalTriggers = document.getElementById('totalTriggers'); if(totalTriggers) totalTriggers.innerHTML = trig;
-        const riskAdvice = document.getElementById('riskAdvice'); if(riskAdvice) riskAdvice.innerHTML = state.status === 'BAHAYA' ? '🔥 EVACUATION NEEDED' : (state.status.includes('WASPADA') ? '⚠️ Potential fire risk' : '🟢 Nominal conditions');
-        const fireGlow = document.getElementById('fireGlow'); if(fireGlow) { if(state.status === 'BAHAYA') fireGlow.classList.add('active'); else fireGlow.classList.remove('active'); }
+    function applyOutputsByStatus(status){
+        state.ledGreen = state.ledYellow = state.ledRed = state.relay = state.buzzer = false;
+        switch(status){
+            case 'BERBAHAYA': case 'GAS_BERACUN':
+                state.ledRed = true; state.relay = true; state.buzzer = true; break;
+            case 'SANGAT_TIDAK_SEHAT': case 'TIDAK_SEHAT':
+                state.ledYellow = true; state.buzzer = true; break;
+            case 'SEDANG':
+                state.ledYellow = true; break;
+            case 'RUANGAN_PANAS': case 'RUANGAN_KERING':
+                state.ledYellow = true; break;
+            default: // BAIK
+                state.ledGreen = true; break;
+        }
     }
 
-    function addLog(type, detail) {
-        const time = new Date().toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
-        state.logs.unshift({ time, type, detail, status: state.status, gas: state.gasValue, objTemp: state.objectTemp.toFixed(1), roomTemp: state.roomTemp.toFixed(1), hum: state.humidity.toFixed(1) });
-        if(state.logs.length > 150) state.logs.pop();
+    function pushHistory(){
+        state.history.pm25.push(state.pm25);
+        state.history.gas.push(state.gas);
+        state.history.roomTemp.push(state.roomTemp);
+        state.history.hum.push(state.humidity);
+        ['pm25','gas','roomTemp','hum'].forEach(k=>{ if(state.history[k].length>20) state.history[k]=state.history[k].slice(-20); });
+        updateSparklines();
+    }
+
+    function addLog(eventType, detail){
+        const time = new Date().toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+        state.logs.unshift({time, eventType, detail, status: state.status, pm25: state.pm25, gas: state.gas, roomTemp: state.roomTemp.toFixed(1), hum: state.humidity.toFixed(1)});
+        if(state.logs.length>100) state.logs.pop();
         renderLogs();
-        const todayLogs = state.logs.filter(l => l.time.includes(new Date().toLocaleTimeString().slice(0,5))).length;
-        const logCountToday = document.getElementById('logCountToday'); if(logCountToday) logCountToday.innerHTML = todayLogs;
     }
 
-    function renderLogs() {
-        const tbody = document.getElementById('logBody'); if(!tbody) return;
+    function renderLogs(){
+        const tbody = document.getElementById('logBody');
+        if(!tbody) return;
         let data = state.logs;
-        if(currentFilter === 'status') data = data.filter(l => l.type === 'status_change');
-        if(currentFilter === 'sensor') data = data.filter(l => l.type === 'sensor_update' || l.type === 'threshold_change');
-        if(data.length === 0) { tbody.innerHTML = '<tr><td colspan="7" class="log-empty">📡 No events yet</td></tr>'; return; }
-        tbody.innerHTML = data.map(l => { let bc = l.status === 'BAHAYA' ? 'badge-danger' : (l.status !== 'AMAN' ? 'badge-warning' : 'badge-aman'); return `<tr><td>${l.time}</td><td><small>${l.detail}</small></td><td><span class="status-badge ${bc}">${l.status}</span></td><td>${l.gas}</td><td>${l.objTemp}</td><td>${l.roomTemp}</td><td>${l.hum}</td></tr>`; }).join('');
+        if(currentLogFilter === 'status') data = data.filter(l=>l.eventType==='status_change');
+        if(currentLogFilter === 'sensor') data = data.filter(l=>l.eventType==='sensor_update'||l.eventType==='threshold_change');
+        if(!data.length){ tbody.innerHTML='<tr><td colspan="7" class="log-empty">📡 Menunggu data dari sensor...</td></tr>'; return; }
+        tbody.innerHTML = data.map(l=>{
+            let badgeClass = '';
+            if(l.status === 'BERBAHAYA' || l.status === 'GAS_BERACUN') badgeClass = 'badge-hazardous';
+            else if(l.status === 'SANGAT_TIDAK_SEHAT') badgeClass = 'badge-very-unhealthy';
+            else if(l.status === 'TIDAK_SEHAT') badgeClass = 'badge-unhealthy';
+            else if(l.status === 'SEDANG') badgeClass = 'badge-moderate';
+            else badgeClass = 'badge-good';
+            return `<tr><td>${l.time}</td><td><small>${l.detail}</small></td><td><span class="status-badge ${badgeClass}" style="padding:4px 12px;">${l.status}</span></td><td>${l.pm25}</td><td>${l.gas}</td><td>${l.roomTemp}</td><td>${l.hum}</td></tr>`;
+        }).join('');
     }
 
-    function updateAllSensorUI() {
-        const valGas = document.getElementById('val-gas'); if(valGas) valGas.innerText = state.gasValue;
-        const valObj = document.getElementById('val-objTemp'); if(valObj) valObj.innerText = state.objectTemp.toFixed(1);
-        const valRoom = document.getElementById('val-roomTemp'); if(valRoom) valRoom.innerText = state.roomTemp.toFixed(1);
-        const valHum = document.getElementById('val-hum'); if(valHum) valHum.innerText = state.humidity.toFixed(1);
-        ['gas','objTemp','roomTemp','hum'].forEach(k => {
-            const fill = document.getElementById(`fill-${k}`); if(!fill) return;
-            const maxV = { gas:4095, objTemp:120, roomTemp:60, hum:100 };
-            let val = k === 'gas' ? state.gasValue : k === 'objTemp' ? state.objectTemp : k === 'roomTemp' ? state.roomTemp : state.humidity;
-            fill.style.width = `${Math.min(100, (val/maxV[k])*100)}%`;
+    function updateUI(){
+        document.getElementById('val-pm25') && (document.getElementById('val-pm25').textContent = state.pm25);
+        document.getElementById('val-gas') && (document.getElementById('val-gas').textContent = state.gas);
+        document.getElementById('val-roomTemp') && (document.getElementById('val-roomTemp').textContent = state.roomTemp.toFixed(1));
+        document.getElementById('val-hum') && (document.getElementById('val-hum').textContent = state.humidity.toFixed(1));
+        // critical highlighting
+        const pmEl = document.getElementById('val-pm25');
+        if(state.pm25 > state.thresholds.pm25Unhealthy) pmEl?.classList.add('crit');
+        else pmEl?.classList.remove('crit');
+        if(state.gas >= state.thresholds.gasToxic) document.getElementById('val-gas')?.classList.add('crit');
+        else document.getElementById('val-gas')?.classList.remove('crit');
+        
+        // progress bars
+        const maxVals = { pm25: 300, gas: 1000, roomTemp: 50, hum: 100 };
+        ['pm25','gas','roomTemp','hum'].forEach(k=>{
+            let val = state[k];
+            let fill = document.getElementById(`fill-${k}`);
+            if(fill) fill.style.width = `${Math.min((val/maxVals[k])*100,100)}%`;
         });
-        const lastUpdate = document.getElementById('lastUpdate'); if(lastUpdate) lastUpdate.innerHTML = new Date().toLocaleTimeString();
-        updateRiskUI();
+        // LEDs
+        const ledGreen = document.getElementById('ledGreen'), ledYellow = document.getElementById('ledYellow'), ledRed = document.getElementById('ledRed');
+        if(ledGreen) ledGreen.className = `led-dot ${state.ledGreen ? 'on-green' : ''}`;
+        if(ledYellow) ledYellow.className = `led-dot ${state.ledYellow ? 'on-yellow' : ''}`;
+        if(ledRed) ledRed.className = `led-dot ${state.ledRed ? 'on-red' : ''}`;
+        document.getElementById('ledLabel') && (document.getElementById('ledLabel').textContent = state.ledGreen ? 'Hijau (Baik)' : state.ledYellow ? 'Kuning (Waspada Polusi)' : state.ledRed ? 'Merah (Berbahaya!)' : 'Normal');
+        document.getElementById('relayIcon') && (document.getElementById('relayIcon').textContent = state.relay ? '⚡' : '🔌');
+        document.getElementById('relayLabel') && (document.getElementById('relayLabel').textContent = state.relay ? 'AKTIF' : 'OFF');
+        document.getElementById('buzzerIcon') && (document.getElementById('buzzerIcon').textContent = state.buzzer ? '🔊' : '🔇');
+        document.getElementById('buzzerLabel') && (document.getElementById('buzzerLabel').textContent = state.buzzer ? 'Berbunyi!' : 'Diam');
+        
+        // Status badge & AQI circle
+        const badge = document.getElementById('statusBadge');
+        const iconApp = document.querySelector('.app-icon i');
+        badge.classList.remove('badge-good','badge-moderate','badge-unhealthy','badge-very-unhealthy','badge-hazardous');
+        let displayText = '', aqiScore = 0;
+        switch(state.status){
+            case 'BAIK': badge.classList.add('badge-good'); displayText = '🟢 KUALITAS BAIK'; aqiScore = 20; iconApp.className = 'fas fa-smile'; break;
+            case 'SEDANG': badge.classList.add('badge-moderate'); displayText = '🟡 KUALITAS SEDANG'; aqiScore = 40; iconApp.className = 'fas fa-meh'; break;
+            case 'TIDAK_SEHAT': badge.classList.add('badge-unhealthy'); displayText = '🟠 TIDAK SEHAT'; aqiScore = 70; iconApp.className = 'fas fa-mask'; break;
+            case 'SANGAT_TIDAK_SEHAT': badge.classList.add('badge-very-unhealthy'); displayText = '🔴 SANGAT TIDAK SEHAT'; aqiScore = 85; iconApp.className = 'fas fa-skull'; break;
+            case 'BERBAHAYA': badge.classList.add('badge-hazardous'); displayText = '💀 BERBAHAYA!'; aqiScore = 100; iconApp.className = 'fas fa-biohazard'; break;
+            case 'GAS_BERACUN': badge.classList.add('badge-hazardous'); displayText = '☠️ GAS BERACUN!'; aqiScore = 100; iconApp.className = 'fas fa-skull-crossbones'; break;
+            case 'RUANGAN_PANAS': badge.classList.add('badge-moderate'); displayText = '🌡️ RUANGAN PANAS'; aqiScore = 35; iconApp.className = 'fas fa-temperature-high'; break;
+            case 'RUANGAN_KERING': badge.classList.add('badge-moderate'); displayText = '💧 UDARA KERING'; aqiScore = 30; iconApp.className = 'fas fa-tint-slash'; break;
+            default: badge.classList.add('badge-good'); displayText = '✅ NORMAL'; aqiScore = 10;
+        }
+        badge.innerHTML = `<span>${displayText}</span>`;
+        const scoreCircle = document.getElementById('scoreCircle');
+        if(scoreCircle){
+            scoreCircle.textContent = aqiScore;
+            scoreCircle.classList.remove('aqi-good','aqi-moderate','aqi-unhealthy','aqi-very-unhealthy','aqi-hazardous');
+            if(state.status === 'BAIK') scoreCircle.classList.add('aqi-good');
+            else if(state.status === 'SEDANG') scoreCircle.classList.add('aqi-moderate');
+            else if(state.status === 'TIDAK_SEHAT') scoreCircle.classList.add('aqi-unhealthy');
+            else if(state.status === 'SANGAT_TIDAK_SEHAT') scoreCircle.classList.add('aqi-very-unhealthy');
+            else if(state.status === 'BERBAHAYA' || state.status === 'GAS_BERACUN') scoreCircle.classList.add('aqi-hazardous');
+            else scoreCircle.classList.add('aqi-moderate');
+        }
+        document.getElementById('scoreDesc') && (document.getElementById('scoreDesc').textContent = state.status === 'BAIK' ? 'Udara bersih, aman beraktivitas' : 'Kualitas udara tidak sehat, kurangi aktivitas luar');
+        let abnormal = (state.pm25 > state.thresholds.pm25Good?1:0) + (state.gas >= state.thresholds.gasToxic?1:0) + (state.roomTemp > state.thresholds.roomHot?1:0) + (state.humidity < state.thresholds.humDry?1:0);
+        document.getElementById('triggerText') && (document.getElementById('triggerText').textContent = `${abnormal} parameter tidak normal`);
     }
 
-    function onMqttData(data) {
-        if(data.gas !== undefined) state.gasValue = Number(data.gas);
-        if(data.objectTemp !== undefined) state.objectTemp = Number(data.objectTemp);
-        if(data.roomTemp !== undefined) state.roomTemp = Number(data.roomTemp);
-        if(data.humidity !== undefined) state.humidity = Number(data.humidity);
-        let newStatus = data.status ? data.status.toUpperCase() : determineStatus();
-        const valid = ['BAHAYA','WASPADA','GAS_TERDETEKSI','API_TERDETEKSI','RUANGAN_PANAS','RUANGAN_KERING','AMAN'];
-        if(!valid.includes(newStatus)) newStatus = 'AMAN';
-        const oldStatus = state.status;
-        state.status = newStatus;
-        applyOutputsByStatus(state.status);
-        pushToHistory();
-        updateAllSensorUI();
-        if(oldStatus !== state.status) addLog('status_change', `Status changed: ${oldStatus} → ${state.status}`);
-        else addLog('sensor_update', 'MQTT data ingestion');
+    function initSparklines(){
+        const cfg = [{id:'pm25', color:'#f97316'},{id:'gas', color:'#8b5cf6'},{id:'roomTemp', color:'#3b82f6'},{id:'hum', color:'#10b981'}];
+        cfg.forEach(c=>{ const ctx = document.getElementById(`spark-${c.id}`); if(ctx){ charts[c.id] = new Chart(ctx, {type:'line', data:{labels:Array(20).fill(''), datasets:[{data:Array(20).fill(0), borderColor:c.color, backgroundColor:c.color+'20', borderWidth:2, fill:true, pointRadius:0, tension:0.3}]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{enabled:false}}, scales:{x:{display:false}, y:{display:false}}}}); } });
     }
+    function updateSparklines(){ ['pm25','gas','roomTemp','hum'].forEach(k=>{ if(charts[k]){ charts[k].data.datasets[0].data = [...state.history[k]]; charts[k].update(); } }); }
 
-    function connectMQTT() {
-        const BROKER = 'wss://broker.emqx.io:8084/mqtt';
-        const TOPIC = 'fire_detector/data';
+    function connectMQTT(){
         mqttClient = mqtt.connect(BROKER);
         window.mqttClient = mqttClient;
-        mqttClient.on('connect', () => {
-            const connDot = document.getElementById('connDot'); if(connDot) connDot.style.background = '#10b981';
-            const connLabel = document.getElementById('connLabel'); if(connLabel) connLabel.innerText = 'MQTT Online';
-            mqttClient.subscribe(TOPIC, (err) => { if(!err) showToast('MQTT Live Stream Active'); });
+        mqttClient.on('connect',()=>{
+            state.mqttConnected = true;
+            document.getElementById('connDot')?.classList.add('connected');
+            document.getElementById('connLabel').innerHTML = 'MQTT: Terhubung';
+            mqttClient.subscribe(TOPIC, (err)=>{ if(!err) showToast('✅ Terhubung ke broker MQTT'); });
         });
-        mqttClient.on('message', (topic, msg) => { try { const json = JSON.parse(msg.toString()); onMqttData(json); } catch(e) {} });
-        mqttClient.on('error', () => {
-            const connDot = document.getElementById('connDot'); if(connDot) connDot.style.background = '#ef4444';
-            const connLabel = document.getElementById('connLabel'); if(connLabel) connLabel.innerText = 'MQTT Error';
-            showToast('MQTT connection failed');
+        mqttClient.on('message', (topic, msg)=>{
+            try{
+                const data = JSON.parse(msg.toString());
+                // Asumsikan data dari ESP32: gas, objectTemp(optional), roomTemp, humidity
+                if(data.gas !== undefined) state.gas = Number(data.gas);
+                if(data.objectTemp !== undefined) state.pm25 = Math.min(300, Number(data.objectTemp) * 2); // simulasi konversi suhu api ke PM2.5
+                if(data.roomTemp !== undefined) state.roomTemp = Number(data.roomTemp);
+                if(data.humidity !== undefined) state.humidity = Number(data.humidity);
+                // Jika tidak ada field pm25, gunakan gas dan suhu untuk estimasi (opsional)
+                let newStatus = determineAirQualityStatus();
+                const oldStatus = state.status;
+                state.status = newStatus;
+                applyOutputsByStatus(state.status);
+                pushHistory();
+                updateUI();
+                if(oldStatus !== state.status) addLog('status_change', `Status AQI berubah: ${oldStatus} → ${state.status}`);
+                else addLog('sensor_update', 'Update data real-time dari sensor');
+            } catch(e){ console.warn(e); }
+        });
+        mqttClient.on('error',()=>{
+            document.getElementById('connDot')?.classList.remove('connected');
+            document.getElementById('connLabel').innerHTML = 'MQTT: Error';
+            showToast('❌ Koneksi MQTT terputus');
         });
     }
 
-    function buildSensors() {
-        const grid = document.getElementById('sensorGrid'); if(!grid) return;
-        grid.innerHTML = `
-            <div class="sensor-card-modern"><div class="sensor-header"><i class="fas fa-wind" style="color:#8b5cf6;"></i> <span>MQ-2 Combustible Gas</span></div><div class="sensor-digit" id="val-gas">0</div><div class="threshold-progress"><div class="progress-fill" id="fill-gas" style="width:0%; background:#8b5cf6;"></div></div><span style="font-size:0.7rem;">Threshold: ${state.thresholds.gas}</span></div>
-            <div class="sensor-card-modern"><div class="sensor-header"><i class="fas fa-fire" style="color:#ef4444;"></i> <span>MLX90614 (Fire Temp)</span></div><div class="sensor-digit" id="val-objTemp">0</div><div class="threshold-progress"><div class="progress-fill" id="fill-objTemp" style="width:0%; background:#ef4444;"></div></div><span style="font-size:0.7rem;">Warning: ${state.thresholds.fireWarn}°C</span></div>
-            <div class="sensor-card-modern"><div class="sensor-header"><i class="fas fa-temperature-low" style="color:#3b82f6;"></i> <span>DHT22 Ambient</span></div><div class="sensor-digit" id="val-roomTemp">0</div><div class="threshold-progress"><div class="progress-fill" id="fill-roomTemp" style="width:0%; background:#3b82f6;"></div></div><span style="font-size:0.7rem;">Hot limit: ${state.thresholds.roomHot}°C</span></div>
-            <div class="sensor-card-modern"><div class="sensor-header"><i class="fas fa-tint" style="color:#10b981;"></i> <span>Humidity Level</span></div><div class="sensor-digit" id="val-hum">0</div><div class="threshold-progress"><div class="progress-fill" id="fill-hum" style="width:0%; background:#10b981;"></div></div><span style="font-size:0.7rem;">Dry &lt; ${state.thresholds.humDry}%</span></div>
-        `;
+    function buildUI(){
+        const sg = document.getElementById('sensorGrid');
+        if(sg){
+            sg.innerHTML = `
+                <div class="sensor-card"><div class="sensor-header"><div class="sensor-icon" style="background:#f9731620; color:#f97316"><i class="fas fa-smog"></i></div><span>PM2.5 - Partikulat Halus</span></div><div class="sensor-value" id="val-pm25">0</div><span>µg/m³</span><div class="sparkline-wrap"><canvas id="spark-pm25"></canvas></div><div class="threshold-bar"><div class="threshold-fill" id="fill-pm25" style="width:0%;background:#f97316;"></div></div></div>
+                <div class="sensor-card"><div class="sensor-header"><div class="sensor-icon" style="background:#8b5cf620; color:#8b5cf6"><i class="fas fa-industry"></i></div><span>Gas Polutan (CO, asap)</span></div><div class="sensor-value" id="val-gas">0</div><span>ppm</span><div class="sparkline-wrap"><canvas id="spark-gas"></canvas></div><div class="threshold-bar"><div class="threshold-fill" id="fill-gas" style="width:0%;background:#8b5cf6;"></div></div></div>
+                <div class="sensor-card"><div class="sensor-header"><div class="sensor-icon" style="background:#3b82f620; color:#3b82f6"><i class="fas fa-temperature-high"></i></div><span>Suhu Ruangan</span></div><div class="sensor-value" id="val-roomTemp">0</div><span>°C</span><div class="sparkline-wrap"><canvas id="spark-roomTemp"></canvas></div><div class="threshold-bar"><div class="threshold-fill" id="fill-roomTemp" style="width:0%;background:#3b82f6;"></div></div></div>
+                <div class="sensor-card"><div class="sensor-header"><div class="sensor-icon" style="background:#10b98120; color:#10b981"><i class="fas fa-tint"></i></div><span>Kelembaban Udara</span></div><div class="sensor-value" id="val-hum">0</div><span>%</span><div class="sparkline-wrap"><canvas id="spark-hum"></canvas></div><div class="threshold-bar"><div class="threshold-fill" id="fill-hum" style="width:0%;background:#10b981;"></div></div></div>
+            `;
+        }
+        const og = document.getElementById('outputGrid');
+        if(og){
+            og.innerHTML = `<div class="output-card"><p>LED Indikator</p><div class="led-triple"><span class="led-dot" id="ledGreen"></span><span class="led-dot" id="ledYellow"></span><span class="led-dot" id="ledRed"></span></div><small id="ledLabel">Hijau (Baik)</small></div>
+                            <div class="output-card"><p>Relay Exhaust Fan</p><div style="font-size:2rem;" id="relayIcon">🔌</div><small id="relayLabel">OFF</small></div>
+                            <div class="output-card"><p>Buzzer Peringatan</p><div style="font-size:2rem;" id="buzzerIcon">🔇</div><small id="buzzerLabel">Diam</small></div>
+                            <div class="output-card"><p>MQTT Broker</p><div style="font-size:2rem;" id="mqttIcon">🟠</div><small id="mqttLabel">Menunggu data</small></div>`;
+        }
     }
 
-    function initCharts() {
-        const ctxTemp = document.getElementById('tempChart'); const ctxGas = document.getElementById('gasHumChart');
-        if(!ctxTemp || !ctxGas) return;
-        tempChart = new Chart(ctxTemp.getContext('2d'), { type:'line', data:{ labels:timeLabels, datasets:[{ label:'Room Temp (°C)', data:state.historyArrays.roomTemp, borderColor:'#3b82f6', tension:0.3, fill:true },{ label:'Object Temp (Fire) °C', data:state.historyArrays.objTemp, borderColor:'#ef4444', tension:0.3 }] }, options:{ responsive:true, maintainAspectRatio:true } });
-        gasHumChart = new Chart(ctxGas.getContext('2d'), { type:'line', data:{ labels:timeLabels, datasets:[{ label:'Gas Sensor (analog)', data:state.historyArrays.gas, borderColor:'#a855f7', yAxisID:'y', tension:0.3 },{ label:'Humidity (%)', data:state.historyArrays.hum, borderColor:'#10b981', yAxisID:'y1', tension:0.3 }] }, options:{ responsive:true, scales:{ y:{ title:{ display:true, text:'Gas Level' } }, y1:{ position:'right', title:{ text:'Humidity (%)' } } } } });
+    function initEventListeners(){
+        const btnThreshold = document.getElementById('btnThreshold');
+        btnThreshold?.addEventListener('click',()=>{
+            document.getElementById('thPm25Good').value = state.thresholds.pm25Good;
+            document.getElementById('thPm25Moderate').value = state.thresholds.pm25Moderate;
+            document.getElementById('thPm25Unhealthy').value = state.thresholds.pm25Unhealthy;
+            document.getElementById('thPm25VeryUnhealthy').value = state.thresholds.pm25VeryUnhealthy;
+            document.getElementById('thGasToxic').value = state.thresholds.gasToxic;
+            document.getElementById('thRoomHot').value = state.thresholds.roomHot;
+            document.getElementById('thHumDry').value = state.thresholds.humDry;
+            document.getElementById('thresholdModal').classList.add('active');
+        });
+        document.getElementById('saveThresholdBtn')?.addEventListener('click',()=>{
+            state.thresholds.pm25Good = parseInt(document.getElementById('thPm25Good').value) || 50;
+            state.thresholds.pm25Moderate = parseInt(document.getElementById('thPm25Moderate').value) || 100;
+            state.thresholds.pm25Unhealthy = parseInt(document.getElementById('thPm25Unhealthy').value) || 150;
+            state.thresholds.pm25VeryUnhealthy = parseInt(document.getElementById('thPm25VeryUnhealthy').value) || 200;
+            state.thresholds.gasToxic = parseInt(document.getElementById('thGasToxic').value) || 200;
+            state.thresholds.roomHot = parseFloat(document.getElementById('thRoomHot').value) || 40;
+            state.thresholds.humDry = parseFloat(document.getElementById('thHumDry').value) || 30;
+            document.getElementById('thresholdModal').classList.remove('active');
+            addLog('threshold_change', 'Threshold kualitas udara diperbarui');
+            showToast('✅ Threshold disimpan');
+            let newStatus = determineAirQualityStatus();
+            if(newStatus !== state.status){
+                state.status = newStatus;
+                applyOutputsByStatus(state.status);
+                updateUI();
+            } else { updateUI(); }
+        });
+        document.getElementById('closeModalBtn')?.addEventListener('click',()=>document.getElementById('thresholdModal').classList.remove('active'));
+        document.getElementById('cancelModalBtn')?.addEventListener('click',()=>document.getElementById('thresholdModal').classList.remove('active'));
+        document.getElementById('btnClearLog')?.addEventListener('click',()=>{ state.logs = []; renderLogs(); showToast('🗑️ Log dihapus'); });
+        document.querySelectorAll('.log-filter-btn').forEach(btn=>{
+            btn.addEventListener('click',function(){
+                document.querySelectorAll('.log-filter-btn').forEach(b=>b.classList.remove('active'));
+                this.classList.add('active');
+                currentLogFilter = this.dataset.filter;
+                renderLogs();
+            });
+        });
     }
 
-    function initEventListeners() {
-        const btnThreshold = document.getElementById('btnThreshold'); if(btnThreshold) {
-            btnThreshold.addEventListener('click', () => { document.getElementById('thGas').value = state.thresholds.gas; document.getElementById('thFireDanger').value = state.thresholds.fireDanger; document.getElementById('thFireWarn').value = state.thresholds.fireWarn; document.getElementById('thRoomHot').value = state.thresholds.roomHot; document.getElementById('thHumDry').value = state.thresholds.humDry; document.getElementById('thresholdModal').classList.add('active'); });
-        }
-        const saveBtn = document.getElementById('saveThresholdBtn'); if(saveBtn) {
-            saveBtn.addEventListener('click', () => { state.thresholds.gas = parseInt(document.getElementById('thGas').value) || 2000; state.thresholds.fireDanger = parseFloat(document.getElementById('thFireDanger').value) || 70; state.thresholds.fireWarn = parseFloat(document.getElementById('thFireWarn').value) || 50; state.thresholds.roomHot = parseFloat(document.getElementById('thRoomHot').value) || 40; state.thresholds.humDry = parseFloat(document.getElementById('thHumDry').value) || 50; document.getElementById('thresholdModal').classList.remove('active'); addLog('threshold_change','Thresholds updated'); showToast('Threshold calibrated'); updateAllSensorUI(); });
-        }
-        const closeModal = document.getElementById('closeModalBtn'); if(closeModal) closeModal.addEventListener('click', () => document.getElementById('thresholdModal').classList.remove('active'));
-        const cancelModal = document.getElementById('cancelModalBtn'); if(cancelModal) cancelModal.addEventListener('click', () => document.getElementById('thresholdModal').classList.remove('active'));
-        const clearLog = document.getElementById('btnClearLog'); if(clearLog) clearLog.addEventListener('click', () => { state.logs = []; renderLogs(); showToast('Log cleared'); });
-        const exportLog = document.getElementById('btnExportLog'); if(exportLog) {
-            exportLog.addEventListener('click', () => { let csv = "Time,Event,Status,Gas,FireTemp,RoomTemp,Humidity\n" + state.logs.map(l => `${l.time},${l.detail},${l.status},${l.gas},${l.objTemp},${l.roomTemp},${l.hum}`).join("\n"); const blob = new Blob([csv], { type:"text/csv" }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = "fireguard_logs.csv"; a.click(); URL.revokeObjectURL(a.href); });
-        }
-        document.querySelectorAll('.log-filter-btn').forEach(btn => { btn.addEventListener('click', function() { document.querySelectorAll('.log-filter-btn').forEach(b => b.classList.remove('active')); this.classList.add('active'); currentFilter = this.dataset.filter; renderLogs(); }); });
-    }
-
-    window.initDashboard = function() {
-        buildSensors();
-        initCharts();
+    function initDashboard(){
+        buildUI();
+        initSparklines();
         initEventListeners();
         connectMQTT();
-        applyOutputsByStatus('AMAN');
-        updateAllSensorUI();
-        setInterval(() => { if(state.historyArrays.gas.length) updateCharts(); }, 1000);
-    };
-
+        applyOutputsByStatus('BAIK');
+        updateUI();
+    }
     checkAuth();
 })();
 </script>
